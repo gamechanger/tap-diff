@@ -36,6 +36,10 @@ var _jsondiffpatch = require('jsondiffpatch');
 
 var _jsondiffpatch2 = _interopRequireDefault(_jsondiffpatch);
 
+var _getSource = require('get-source');
+
+var _getSource2 = _interopRequireDefault(_getSource);
+
 var INDENT = '  ';
 var FIG_TICK = _figures2['default'].tick;
 var FIG_CROSS = _figures2['default'].cross;
@@ -135,6 +139,8 @@ var createReporter = function createReporter() {
       expected_type = toString(expected);
     }
 
+    at = processSourceMap(at);
+
     println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
 
     if (expected_type === 'object') {
@@ -154,6 +160,19 @@ var createReporter = function createReporter() {
     } else {
       println(_chalk2['default'].red.inverse(actual) + _chalk2['default'].green.inverse(expected), 4);
     }
+  };
+
+  var processSourceMap = function processSourceMap(at) {
+    var re = /\((.*)\:(\d*)\:(\d*)\)$/;
+    var parsed = at.match(re);
+    var file = parsed[1];
+    var line = Number(parsed[2]);
+    var column = Number(parsed[3]);
+
+    var sourceFile = (0, _getSource2['default'])(file);
+    var resolved = sourceFile.resolve({ line: line, column: column });
+
+    return at.replace(re, '(' + resolved.sourceFile.path + ':' + resolved.line + ':' + resolved.column + ')');
   };
 
   var handleComplete = function handleComplete(result) {

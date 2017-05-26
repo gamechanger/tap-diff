@@ -6,6 +6,7 @@ import through2 from 'through2';
 import parser from 'tap-parser';
 import prettyMs from 'pretty-ms';
 import jsondiffpatch from 'jsondiffpatch';
+import getSource from 'get-source';
 
 const INDENT = '  ';
 const FIG_TICK = figures.tick;
@@ -92,6 +93,8 @@ const createReporter = () => {
       expected_type = toString(expected)
     }
 
+    at = processSourceMap(at);
+
     println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
 
     if (expected_type === 'object') {
@@ -119,6 +122,19 @@ const createReporter = () => {
         4
       );
     }
+  };
+
+  const processSourceMap = (at) => {
+    let re = /\((.*)\:(\d*)\:(\d*)\)$/
+    let parsed = at.match(re);
+    let file = parsed[1];
+    let line = Number(parsed[2]);
+    let column = Number(parsed[3]);
+
+    let sourceFile = getSource(file);
+    let resolved = sourceFile.resolve({line: line, column: column});
+
+    return at.replace(re, `(${resolved.sourceFile.path}:${resolved.line}:${resolved.column})`)
   };
 
   const handleComplete = result => {
