@@ -140,6 +140,7 @@ const createReporter = () => {
   const handleComplete = result => {
     const finishedAt = Date.now();
 
+
     println();
     println(
       chalk.green(`passed: ${result.pass}  `) +
@@ -151,12 +152,21 @@ const createReporter = () => {
 
     if (result.ok) {
       println(chalk.green(`All of ${result.count} tests passed!`));
+      println();
     } else {
       println(chalk.red(`${result.fail || 0} of ${result.count} tests failed.`));
+      println();
       stream.isFailed = true;
+      println(chalk.red('FAILURES:'))
+
+      for (var i = result.failures.length - 1; i >= 0; i--) {
+        println();
+        handleAssertFailure(result.failures[i]);
+      }
+
+      println();
     }
 
-    println();
   };
 
   p.on('comment', (comment) => {

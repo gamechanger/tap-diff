@@ -184,12 +184,20 @@ var createReporter = function createReporter() {
 
     if (result.ok) {
       println(_chalk2['default'].green('All of ' + result.count + ' tests passed!'));
+      println();
     } else {
       println(_chalk2['default'].red((result.fail || 0) + ' of ' + result.count + ' tests failed.'));
+      println();
       stream.isFailed = true;
-    }
+      println(_chalk2['default'].red('FAILURES:'));
 
-    println();
+      for (var i = result.failures.length - 1; i >= 0; i--) {
+        println();
+        handleAssertFailure(result.failures[i]);
+      }
+
+      println();
+    }
   };
 
   p.on('comment', function (comment) {
