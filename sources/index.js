@@ -1,12 +1,14 @@
-import { diffWords, diffJson } from 'diff';
 import chalk from 'chalk';
 import duplexer from 'duplexer';
 import figures from 'figures';
 import through2 from 'through2';
 import parser from 'tap-parser';
 import prettyMs from 'pretty-ms';
-import jsondiffpatch from 'jsondiffpatch';
 import getSource from 'get-source';
+import difflet from 'difflet';
+import ansidiff from 'ansidiff';
+
+let diff = difflet({indent: 4});
 
 const INDENT = '  ';
 const FIG_TICK = figures.tick;
@@ -47,23 +49,32 @@ const createReporter = () => {
   const JSONize = (str) => {
     return str
       // wrap keys without quote with valid double quote
-      .replace(/([\$\w]+)\s*:/g, (_, $1) => '"'+$1+'":')
+      .replace(/([\$\w]+)\s*:/g, (_, $1) => '"'+$1+'": ')
       // replacing single quote wrapped ones to double quote
       .replace(/'([^']+)'/g, (_, $1) => '"' + $1 + '"')
   }
 
+  const objectize = (arg) => {
+    if (typeof arg === 'string') {
+      try {
+        // the assert event only returns strings which is broken so this
+        // handles converting strings into objects
+        if (arg.indexOf('{') > -1) {
+          arg = JSON.parse(JSONize(arg));
+        }
+      } catch (e) {
+        try {
+          arg = eval(`(${arg})`);
+        } catch (e) {
+          // do nothing because it wasn't a valid json object
+        }
+      }
+    }
+    return arg;
+  }
+
   const handleAssertFailure = assert => {
     const name = assert.name;
-
-    const writeDiff = ({ value, added, removed }) => {
-      let style = chalk.white;
-
-      if (added)   style = chalk.green.inverse;
-      if (removed) style = chalk.red.inverse;
-
-      // only highlight values and not spaces before
-      return value.replace(/(^\s*)(.*)/g, (m, one, two) => one + style(two))
-    };
 
     let {
       at,
@@ -71,56 +82,39 @@ const createReporter = () => {
       expected
     } = assert.diag
 
-    let expected_type = toString(expected)
-
-    if (expected_type !== 'array' ) {
-      try {
-        // the assert event only returns strings which is broken so this
-        // handles converting strings into objects
-        if (expected.indexOf('{') > -1) {
-          actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2)
-          expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2)
-        }
-      } catch (e) {
-        try {
-          actual = JSON.stringify(eval(`(${actual})`), null, 2)
-          expected = JSON.stringify(eval(`(${expected})`), null, 2)
-        } catch (e) {
-          // do nothing because it wasn't a valid json object
-        }
-      }
-
-      expected_type = toString(expected)
-    }
-
     at = processSourceMap(at);
 
     println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
 
-    if (expected_type === 'object') {
-      const delta = jsondiffpatch.diff(actual[failed_test_number], expected[failed_test_number])
-      const output = jsondiffpatch.formatters.console.format(delta)
-      println(output, 4)
+    try {
 
-    } else if (expected_type === 'array') {
-      const compared = diffJson(actual, expected)
-        .map(writeDiff)
-        .join('');
+      actual = objectize(actual);
+      expected = objectize(expected);
 
-      println(compared, 4);
-    } else if (expected === 'undefined' && actual === 'undefined') {
-      ;
-    } else if (expected_type === 'string') {
-      const compared = diffWords(actual, expected)
-        .map(writeDiff)
-        .join('');
-
-      println(compared, 4);
-    } else {
-      println(
-        chalk.red.inverse(actual) + chalk.green.inverse(expected),
-        4
-      );
+      let str = '';
+      if (actual && expected) {
+        if (typeof expected !== typeof actual ||
+          typeof expected === 'object' && (!actual || !expected)) {
+          str = chalk.grey('Expected ') + chalk.white(typeof expected) + chalk.grey(' but got ') + chalk.white(typeof actual);
+        } else if (typeof expected === 'string') {
+          if (str.indexOf('\n') >= 0) {
+            str = ansidiff.lines(expected, actual);
+          } else {
+            str = ansidiff.chars(expected, actual);
+          }
+        } else if (typeof expected === 'object') {
+          str = diff.compare(expected, actual);
+        } else {
+          str = chalk.grey('Expected ') + chalk.white('' + expected) + chalk.grey(' but got ') + chalk.white('' + actual);
+        }
+      }
+      if (str != '') {
+        str.replace(/\n/g, '\n      ');
+        output.push(str);
+      }
+      println()
+    } catch (e) {
+      console.log(e);
     }
   };
 

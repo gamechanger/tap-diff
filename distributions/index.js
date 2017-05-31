@@ -6,8 +6,6 @@ Object.defineProperty(exports, '__esModule', {
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
-var _diff = require('diff');
-
 var _chalk = require('chalk');
 
 var _chalk2 = _interopRequireDefault(_chalk);
@@ -32,13 +30,19 @@ var _prettyMs = require('pretty-ms');
 
 var _prettyMs2 = _interopRequireDefault(_prettyMs);
 
-var _jsondiffpatch = require('jsondiffpatch');
-
-var _jsondiffpatch2 = _interopRequireDefault(_jsondiffpatch);
-
 var _getSource = require('get-source');
 
 var _getSource2 = _interopRequireDefault(_getSource);
+
+var _difflet = require('difflet');
+
+var _difflet2 = _interopRequireDefault(_difflet);
+
+var _ansidiff = require('ansidiff');
+
+var _ansidiff2 = _interopRequireDefault(_ansidiff);
+
+var diff = (0, _difflet2['default'])({ indent: 4 });
 
 var INDENT = '  ';
 var FIG_TICK = _figures2['default'].tick;
@@ -85,7 +89,7 @@ var createReporter = function createReporter() {
     return str
     // wrap keys without quote with valid double quote
     .replace(/([\$\w]+)\s*:/g, function (_, $1) {
-      return '"' + $1 + '":';
+      return '"' + $1 + '": ';
     })
     // replacing single quote wrapped ones to double quote
     .replace(/'([^']+)'/g, function (_, $1) {
@@ -93,72 +97,65 @@ var createReporter = function createReporter() {
     });
   };
 
+  var objectize = function objectize(arg) {
+    if (typeof arg === 'string') {
+      try {
+        // the assert event only returns strings which is broken so this
+        // handles converting strings into objects
+        if (arg.indexOf('{') > -1) {
+          arg = JSON.parse(JSONize(arg));
+        }
+      } catch (e) {
+        try {
+          arg = eval('(' + arg + ')');
+        } catch (e) {
+          // do nothing because it wasn't a valid json object
+        }
+      }
+    }
+    return arg;
+  };
+
   var handleAssertFailure = function handleAssertFailure(assert) {
     var name = assert.name;
-
-    var writeDiff = function writeDiff(_ref) {
-      var value = _ref.value;
-      var added = _ref.added;
-      var removed = _ref.removed;
-
-      var style = _chalk2['default'].white;
-
-      if (added) style = _chalk2['default'].green.inverse;
-      if (removed) style = _chalk2['default'].red.inverse;
-
-      // only highlight values and not spaces before
-      return value.replace(/(^\s*)(.*)/g, function (m, one, two) {
-        return one + style(two);
-      });
-    };
 
     var _assert$diag = assert.diag;
     var at = _assert$diag.at;
     var actual = _assert$diag.actual;
     var expected = _assert$diag.expected;
 
-    var expected_type = toString(expected);
-
-    if (expected_type !== 'array') {
-      try {
-        // the assert event only returns strings which is broken so this
-        // handles converting strings into objects
-        if (expected.indexOf('{') > -1) {
-          actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2);
-          expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2);
-        }
-      } catch (e) {
-        try {
-          actual = JSON.stringify(eval('(' + actual + ')'), null, 2);
-          expected = JSON.stringify(eval('(' + expected + ')'), null, 2);
-        } catch (e) {
-          // do nothing because it wasn't a valid json object
-        }
-      }
-
-      expected_type = toString(expected);
-    }
-
     at = processSourceMap(at);
 
     println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
 
-    if (expected_type === 'object') {
-      var delta = _jsondiffpatch2['default'].diff(actual[failed_test_number], expected[failed_test_number]);
-      var _output = _jsondiffpatch2['default'].formatters.console.format(delta);
-      println(_output, 4);
-    } else if (expected_type === 'array') {
-      var compared = (0, _diff.diffJson)(actual, expected).map(writeDiff).join('');
+    try {
 
-      println(compared, 4);
-    } else if (expected === 'undefined' && actual === 'undefined') {
-      ;
-    } else if (expected_type === 'string') {
-      var compared = (0, _diff.diffWords)(actual, expected).map(writeDiff).join('');
+      actual = objectize(actual);
+      expected = objectize(expected);
 
-      println(compared, 4);
-    } else {
-      println(_chalk2['default'].red.inverse(actual) + _chalk2['default'].green.inverse(expected), 4);
+      var str = '';
+      if (actual && expected) {
+        if (typeof expected !== typeof actual || typeof expected === 'object' && (!actual || !expected)) {
+          str = _chalk2['default'].grey('Expected ') + _chalk2['default'].white(typeof expected) + _chalk2['default'].grey(' but got ') + _chalk2['default'].white(typeof actual);
+        } else if (typeof expected === 'string') {
+          if (str.indexOf('\n') >= 0) {
+            str = _ansidiff2['default'].lines(expected, actual);
+          } else {
+            str = _ansidiff2['default'].chars(expected, actual);
+          }
+        } else if (typeof expected === 'object') {
+          str = diff.compare(expected, actual);
+        } else {
+          str = _chalk2['default'].grey('Expected ') + _chalk2['default'].white('' + expected) + _chalk2['default'].grey(' but got ') + _chalk2['default'].white('' + actual);
+        }
+      }
+      if (str != '') {
+        str.replace(/\n/g, '\n      ');
+        output.push(str);
+      }
+      println();
+    } catch (e) {
+      console.log(e);
     }
   };
 
