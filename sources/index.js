@@ -69,72 +69,74 @@ const createReporter = () => {
       // handle exception
       let errorObject = assert.diag.actual;
       let stack = assert.diag.stack;
-      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta('no pathz')}`, 2);
+      let at = processSourceMap(assert.diag.at);
+
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
       println(`${chalk.orange(stack)}`)
       println()
       println(`${chalk.orange(errorObject)}`)
 
     } else {
 
-    }
+      let {
+        at,
+        actual,
+        expected
+      } = assert.diag
 
-    let {
-      at,
-      actual,
-      expected
-    } = assert.diag
+      let expected_type = toString(expected)
 
-    let expected_type = toString(expected)
-
-    if (expected_type !== 'array' ) {
-      try {
-        // the assert event only returns strings which is broken so this
-        // handles converting strings into objects
-        if (expected.indexOf('{') > -1) {
-          actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2)
-          expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2)
-        }
-      } catch (e) {
+      if (expected_type !== 'array' ) {
         try {
-          actual = JSON.stringify(eval(`(${actual})`), null, 2)
-          expected = JSON.stringify(eval(`(${expected})`), null, 2)
+          // the assert event only returns strings which is broken so this
+          // handles converting strings into objects
+          if (expected.indexOf('{') > -1) {
+            actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2)
+            expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2)
+          }
         } catch (e) {
-          // do nothing because it wasn't a valid json object
+          try {
+            actual = JSON.stringify(eval(`(${actual})`), null, 2)
+            expected = JSON.stringify(eval(`(${expected})`), null, 2)
+          } catch (e) {
+            // do nothing because it wasn't a valid json object
+          }
         }
+
+        expected_type = toString(expected)
       }
 
-      expected_type = toString(expected)
+      at = processSourceMap(at);
+
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
+
+      if (expected_type === 'object') {
+        const delta = jsondiffpatch.diff(actual[failed_test_number], expected[failed_test_number])
+        const output = jsondiffpatch.formatters.console.format(delta)
+        println(output, 4)
+
+      } else if (expected_type === 'array') {
+        const compared = diffJson(actual, expected)
+          .map(writeDiff)
+          .join('');
+
+        println(compared, 4);
+      } else if (expected === 'undefined' && actual === 'undefined') {
+        ;
+      } else if (expected_type === 'string') {
+        const compared = diffWords(actual, expected)
+          .map(writeDiff)
+          .join('');
+
+        println(compared, 4);
+      } else {
+        println(
+          chalk.red.inverse(actual) + chalk.green.inverse(expected),
+          4
+        );
+      }
     }
 
-    at = processSourceMap(at);
-
-    println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
-
-    if (expected_type === 'object') {
-      const delta = jsondiffpatch.diff(actual[failed_test_number], expected[failed_test_number])
-      const output = jsondiffpatch.formatters.console.format(delta)
-      println(output, 4)
-
-    } else if (expected_type === 'array') {
-      const compared = diffJson(actual, expected)
-        .map(writeDiff)
-        .join('');
-
-      println(compared, 4);
-    } else if (expected === 'undefined' && actual === 'undefined') {
-      ;
-    } else if (expected_type === 'string') {
-      const compared = diffWords(actual, expected)
-        .map(writeDiff)
-        .join('');
-
-      println(compared, 4);
-    } else {
-      println(
-        chalk.red.inverse(actual) + chalk.green.inverse(expected),
-        4
-      );
-    }
   };
 
   const processSourceMap = (at) => {

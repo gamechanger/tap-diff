@@ -116,59 +116,61 @@ var createReporter = function createReporter() {
       // handle exception
       var errorObject = assert.diag.actual;
       var stack = assert.diag.stack;
-      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta('no pathz'), 2);
+      var at = processSourceMap(assert.diag.at);
+
+      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
       println('' + _chalk2['default'].orange(stack));
       println();
       println('' + _chalk2['default'].orange(errorObject));
-    } else {}
+    } else {
+      var _assert$diag = assert.diag;
+      var at = _assert$diag.at;
+      var actual = _assert$diag.actual;
+      var expected = _assert$diag.expected;
 
-    var _assert$diag = assert.diag;
-    var at = _assert$diag.at;
-    var actual = _assert$diag.actual;
-    var expected = _assert$diag.expected;
+      var expected_type = toString(expected);
 
-    var expected_type = toString(expected);
-
-    if (expected_type !== 'array') {
-      try {
-        // the assert event only returns strings which is broken so this
-        // handles converting strings into objects
-        if (expected.indexOf('{') > -1) {
-          actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2);
-          expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2);
-        }
-      } catch (e) {
+      if (expected_type !== 'array') {
         try {
-          actual = JSON.stringify(eval('(' + actual + ')'), null, 2);
-          expected = JSON.stringify(eval('(' + expected + ')'), null, 2);
+          // the assert event only returns strings which is broken so this
+          // handles converting strings into objects
+          if (expected.indexOf('{') > -1) {
+            actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2);
+            expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2);
+          }
         } catch (e) {
-          // do nothing because it wasn't a valid json object
+          try {
+            actual = JSON.stringify(eval('(' + actual + ')'), null, 2);
+            expected = JSON.stringify(eval('(' + expected + ')'), null, 2);
+          } catch (e) {
+            // do nothing because it wasn't a valid json object
+          }
         }
+
+        expected_type = toString(expected);
       }
 
-      expected_type = toString(expected);
-    }
+      at = processSourceMap(at);
 
-    at = processSourceMap(at);
+      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
 
-    println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
+      if (expected_type === 'object') {
+        var delta = _jsondiffpatch2['default'].diff(actual[failed_test_number], expected[failed_test_number]);
+        var _output = _jsondiffpatch2['default'].formatters.console.format(delta);
+        println(_output, 4);
+      } else if (expected_type === 'array') {
+        var compared = (0, _diff.diffJson)(actual, expected).map(writeDiff).join('');
 
-    if (expected_type === 'object') {
-      var delta = _jsondiffpatch2['default'].diff(actual[failed_test_number], expected[failed_test_number]);
-      var _output = _jsondiffpatch2['default'].formatters.console.format(delta);
-      println(_output, 4);
-    } else if (expected_type === 'array') {
-      var compared = (0, _diff.diffJson)(actual, expected).map(writeDiff).join('');
+        println(compared, 4);
+      } else if (expected === 'undefined' && actual === 'undefined') {
+        ;
+      } else if (expected_type === 'string') {
+        var compared = (0, _diff.diffWords)(actual, expected).map(writeDiff).join('');
 
-      println(compared, 4);
-    } else if (expected === 'undefined' && actual === 'undefined') {
-      ;
-    } else if (expected_type === 'string') {
-      var compared = (0, _diff.diffWords)(actual, expected).map(writeDiff).join('');
-
-      println(compared, 4);
-    } else {
-      println(_chalk2['default'].red.inverse(actual) + _chalk2['default'].green.inverse(expected), 4);
+        println(compared, 4);
+      } else {
+        println(_chalk2['default'].red.inverse(actual) + _chalk2['default'].green.inverse(expected), 4);
+      }
     }
   };
 
