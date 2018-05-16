@@ -17,11 +17,12 @@
     "diff": "^2.2.1",
     "duplexer": "^0.1.1",
     "figures": "^1.4.0",
+    "get-source": "1.0.10",
     "jsondiffpatch": "^0.1.41",
     "pretty-ms": "^2.1.0",
+    "tap-diff": "https://github.com/nrschultz/tap-diff#ns-deal-with-errors",
     "tap-parser": "^1.2.2",
-    "through2": "^2.0.0",
-    "get-source": "1.0.10"
+    "through2": "^2.0.0"
   },
   "devDependencies": {
     "babel": "^5.8.34"

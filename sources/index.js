@@ -67,12 +67,7 @@ const createReporter = () => {
 
     if (assert.diag.operator === 'error') {
       // handle exception
-      console.log(assert);
       let errorObject = assert.diag.actual;
-      console.log(assert.diag.stack.split('\n'))
-      console.log(assert.diag.stack.split('\n').map(processSourceMap))
-      console.log(assert.diag.stack.split('\n').map(processSourceMap).join('\n'))
-      console.log(done);
       let stack = assert.diag.stack.split('\n').map(processSourceMap).join('\n');
       let at = processSourceMap(assert.diag.at);
 
