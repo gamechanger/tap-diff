@@ -114,11 +114,12 @@ var createReporter = function createReporter() {
 
     if (assert.diag.operator === 'error') {
       // handle exception
-      console.log(assert.diag.stack);
-      var error = assert.diag.actual;
+      var errorObject = assert.diag.actual;
       var stack = assert.diag.stack;
-      println(assert.diag.operator);
       println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta('no pathz'), 2);
+      println('' + _chalk2['default'].orange(stack));
+      println();
+      println('' + _chalk2['default'].orange(errorObject));
     } else {}
 
     var _assert$diag = assert.diag;

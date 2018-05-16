@@ -67,11 +67,12 @@ const createReporter = () => {
 
     if (assert.diag.operator === 'error') {
       // handle exception
-      console.log(assert.diag.stack);
-      let error = assert.diag.actual;
+      let errorObject = assert.diag.actual;
       let stack = assert.diag.stack;
-      println(assert.diag.operator);
       println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta('no pathz')}`, 2);
+      println(`${chalk.orange(stack)}`)
+      println()
+      println(`${chalk.orange(errorObject)}`)
 
     } else {
 
