@@ -67,14 +67,15 @@ const createReporter = () => {
 
     if (assert.diag.operator === 'error') {
       // handle exception
+      console.log(assert);
       let errorObject = assert.diag.actual;
       let stack = assert.diag.stack;
       let at = processSourceMap(assert.diag.at);
 
-      println(`${chalk.red(FIG_CROSS)}  Exception at ${chalk.magenta(at)}`, 2);
-      println(`${chalk.magenta(stack)}`)
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red('Exception at')} ${chalk.magenta(at)}`, 2);
+      println(`${chalk.cyan(stack)}`)
       println()
-      println(`${chalk.magenta(errorObject)}`)
+      println(`${chalk.cyan(errorObject)}`)
 
     } else {
 

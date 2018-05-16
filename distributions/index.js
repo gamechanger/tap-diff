@@ -114,14 +114,15 @@ var createReporter = function createReporter() {
 
     if (assert.diag.operator === 'error') {
       // handle exception
+      console.log(assert);
       var errorObject = assert.diag.actual;
       var stack = assert.diag.stack;
       var at = processSourceMap(assert.diag.at);
 
-      println(_chalk2['default'].red(FIG_CROSS) + '  Exception at ' + _chalk2['default'].magenta(at), 2);
-      println('' + _chalk2['default'].magenta(stack));
+      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red('Exception at') + ' ' + _chalk2['default'].magenta(at), 2);
+      println('' + _chalk2['default'].cyan(stack));
       println();
-      println('' + _chalk2['default'].magenta(errorObject));
+      println('' + _chalk2['default'].cyan(errorObject));
     } else {
       var _assert$diag = assert.diag;
       var at = _assert$diag.at;
