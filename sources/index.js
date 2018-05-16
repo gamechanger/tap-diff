@@ -141,19 +141,23 @@ const createReporter = () => {
   };
 
   const processSourceMap = (at) => {
-    let re = /\((.*)\:(\d*)\:(\d*)\)$/
-    let parsed = at.match(re);
-    if (parsed === null) {
-      return at;
+    try {
+      let re = /\((.*)\:(\d*)\:(\d*)\)$/
+      let parsed = at.match(re);
+      if (parsed === null) {
+        return at;
+      }
+      let file = parsed[1];
+      let line = Number(parsed[2]);
+      let column = Number(parsed[3]);
+
+      let sourceFile = getSource(file);
+      let resolved = sourceFile.resolve({line: line, column: column});
+
+      return at.replace(re, `(${resolved.sourceFile.path}:${resolved.line}:${resolved.column})`)
+    } catch (e) {
+      return '';
     }
-    let file = parsed[1];
-    let line = Number(parsed[2]);
-    let column = Number(parsed[3]);
-
-    let sourceFile = getSource(file);
-    let resolved = sourceFile.resolve({line: line, column: column});
-
-    return at.replace(re, `(${resolved.sourceFile.path}:${resolved.line}:${resolved.column})`)
   };
 
   const handleComplete = result => {
@@ -208,7 +212,7 @@ const createReporter = () => {
   p.on('complete', handleComplete);
 
   p.on('child', (child) => {
-    ;
+    console.log(child);
   });
 
   p.on('extra', extra => {

@@ -176,19 +176,23 @@ var createReporter = function createReporter() {
   };
 
   var processSourceMap = function processSourceMap(at) {
-    var re = /\((.*)\:(\d*)\:(\d*)\)$/;
-    var parsed = at.match(re);
-    if (parsed === null) {
-      return at;
+    try {
+      var re = /\((.*)\:(\d*)\:(\d*)\)$/;
+      var parsed = at.match(re);
+      if (parsed === null) {
+        return at;
+      }
+      var file = parsed[1];
+      var line = Number(parsed[2]);
+      var column = Number(parsed[3]);
+
+      var sourceFile = (0, _getSource2['default'])(file);
+      var resolved = sourceFile.resolve({ line: line, column: column });
+
+      return at.replace(re, '(' + resolved.sourceFile.path + ':' + resolved.line + ':' + resolved.column + ')');
+    } catch (e) {
+      return '';
     }
-    var file = parsed[1];
-    var line = Number(parsed[2]);
-    var column = Number(parsed[3]);
-
-    var sourceFile = (0, _getSource2['default'])(file);
-    var resolved = sourceFile.resolve({ line: line, column: column });
-
-    return at.replace(re, '(' + resolved.sourceFile.path + ':' + resolved.line + ':' + resolved.column + ')');
   };
 
   var handleComplete = function handleComplete(result) {
@@ -236,7 +240,7 @@ var createReporter = function createReporter() {
   p.on('complete', handleComplete);
 
   p.on('child', function (child) {
-    ;
+    console.log(child);
   });
 
   p.on('extra', function (extra) {
