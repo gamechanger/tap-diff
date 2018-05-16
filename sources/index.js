@@ -65,6 +65,17 @@ const createReporter = () => {
       return value.replace(/(^\s*)(.*)/g, (m, one, two) => one + style(two))
     };
 
+    if (assert.diag.operator === 'error') {
+      // handle exception
+      let error = assert.diag.actual
+      let stack = assert.diag.stack
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta('no path')}`, 2);
+      println(`${chalk.orange(stack)}`)
+
+    } else {
+
+    }
+
     let {
       at,
       actual,

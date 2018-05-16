@@ -112,6 +112,14 @@ var createReporter = function createReporter() {
       });
     };
 
+    if (assert.diag.operator === 'error') {
+      // handle exception
+      var error = assert.diag.actual;
+      var stack = assert.diag.stack;
+      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta('no path'), 2);
+      println('' + _chalk2['default'].orange(stack));
+    } else {}
+
     var _assert$diag = assert.diag;
     var at = _assert$diag.at;
     var actual = _assert$diag.actual;
