@@ -118,10 +118,10 @@ var createReporter = function createReporter() {
       var stack = assert.diag.stack;
       var at = processSourceMap(assert.diag.at);
 
-      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
       println('' + _chalk2['default'].orange(stack));
       println();
       println('' + _chalk2['default'].orange(errorObject));
+      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
     } else {
       var _assert$diag = assert.diag;
       var at = _assert$diag.at;

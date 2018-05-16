@@ -71,10 +71,10 @@ const createReporter = () => {
       let stack = assert.diag.stack;
       let at = processSourceMap(assert.diag.at);
 
-      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
       println(`${chalk.orange(stack)}`)
       println()
       println(`${chalk.orange(errorObject)}`)
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
 
     } else {
 
