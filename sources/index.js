@@ -69,7 +69,7 @@ const createReporter = () => {
       // handle exception
       console.log(assert);
       let errorObject = assert.diag.actual;
-      let stack = assert.diag.stack;
+      let stack = map(assert.diag.stack.split('\n'), processSourceMap).join('\n');
       let at = processSourceMap(assert.diag.at);
 
       println(`${chalk.red(FIG_CROSS)}  ${chalk.red('Exception at')} ${chalk.magenta(at)}`, 2);
