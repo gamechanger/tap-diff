@@ -70,8 +70,8 @@ const createReporter = () => {
       console.log(assert.diag);
       let error = assert.diag.actual;
       let stack = assert.diag.stack;
-      println(stack)
-      println(error)
+      println(Object.keys(assert.diag.operator));
+      println(assert.diag.operator);
       println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta('no pathz')}`, 2);
 
     } else {
