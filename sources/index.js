@@ -19,7 +19,7 @@ const createReporter = () => {
   const startedAt = Date.now();
 
   const println = (input = '', indentLevel = 0) => {
-    let indent = '';
+    let indent = ' ';
 
     for (let i = 0; i < indentLevel; ++i) {
       indent += INDENT;
@@ -37,9 +37,7 @@ const createReporter = () => {
   };
 
   const handleAssertSuccess = assert => {
-    const name = assert.name;
-
-    println(`${chalk.green(FIG_TICK)}  ${chalk.dim(name)}`, 2)
+    println(`${chalk.green(FIG_TICK)}  ${chalk.dim(assert.name)}`, 2)
   };
 
   const toString = (arg) => Object.prototype.toString.call(arg).slice(8, -1).toLowerCase()
@@ -52,89 +50,115 @@ const createReporter = () => {
       .replace(/'([^']+)'/g, (_, $1) => '"' + $1 + '"')
   }
 
-  const handleAssertFailure = assert => {
-    const name = assert.name;
+  const writeDiff = ({ value, added, removed }) => {
+    let style = chalk.white;
 
-    const writeDiff = ({ value, added, removed }) => {
-      let style = chalk.white;
+    if (added)   style = chalk.green.inverse;
+    if (removed) style = chalk.red.inverse;
 
-      if (added)   style = chalk.green.inverse;
-      if (removed) style = chalk.red.inverse;
+    // only highlight values and not spaces before
+    return value.replace(/(^\s*)(.*)/g, (m, one, two) => one + style(two))
+  };
 
-      // only highlight values and not spaces before
-      return value.replace(/(^\s*)(.*)/g, (m, one, two) => one + style(two))
-    };
+  const handleException = (assert) => {
+      // handle exception
+      let errorObject = assert.diag.actual;
+      let stackSplit = assert.diag.stack.split('\n').map(processSourceMap)
+      let stack = stackSplit.join('\n');
+      let at = processSourceMap(assert.diag.at);
 
-    let {
-      at,
-      actual,
-      expected
-    } = assert.diag
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red('Exception')} ${chalk.magenta(stackSplit[1].trim())}`, 2);
+      println(`${chalk.cyan(stack)}`)
+      println()
+      println(`${chalk.cyan(errorObject)}`)
+  }
 
-    let expected_type = toString(expected)
+  const handleAssertionFailure = (assert) => {
+      const assertionName = assert.name;
+      let { actual, expected } = assert.diag
+      let at = processSourceMap(assert.diag.at) || '';
 
-    if (expected_type !== 'array' ) {
-      try {
-        // the assert event only returns strings which is broken so this
-        // handles converting strings into objects
-        if (expected.indexOf('{') > -1) {
-          actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2)
-          expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2)
-        }
-      } catch (e) {
+      let expected_type = toString(expected)
+
+      if (expected_type !== 'array' ) {
         try {
-          actual = JSON.stringify(eval(`(${actual})`), null, 2)
-          expected = JSON.stringify(eval(`(${expected})`), null, 2)
+          // the assert event only returns strings which is broken so this
+          // handles converting strings into objects
+          if (expected.indexOf('{') > -1) {
+            actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2)
+            expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2)
+          }
         } catch (e) {
-          // do nothing because it wasn't a valid json object
+          try {
+            actual = JSON.stringify(eval(`(${actual})`), null, 2)
+            expected = JSON.stringify(eval(`(${expected})`), null, 2)
+          } catch (e) {
+            // do nothing because it wasn't a valid json object
+          }
         }
+
+        expected_type = toString(expected)
       }
 
-      expected_type = toString(expected)
-    }
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(assertionName)} at ${chalk.magenta(at)}`, 2);
 
-    at = processSourceMap(at);
+      if (expected_type === 'object') {
+        const delta = jsondiffpatch.diff(actual[failed_test_number], expected[failed_test_number])
+        const output = jsondiffpatch.formatters.console.format(delta)
+        println(output, 4)
 
-    println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
+      } else if (expected_type === 'array') {
+        const compared = diffJson(actual, expected)
+          .map(writeDiff)
+          .join('');
 
-    if (expected_type === 'object') {
-      const delta = jsondiffpatch.diff(actual[failed_test_number], expected[failed_test_number])
-      const output = jsondiffpatch.formatters.console.format(delta)
-      println(output, 4)
+        println(compared, 4);
+      } else if (expected === 'undefined' && actual === 'undefined') {
+        ;
+      } else if (expected_type === 'string') {
+        const compared = diffWords(actual, expected)
+          .map(writeDiff)
+          .join('');
 
-    } else if (expected_type === 'array') {
-      const compared = diffJson(actual, expected)
-        .map(writeDiff)
-        .join('');
+        println(compared, 4);
+      } else {
+        println(
+          chalk.red.inverse(actual) + chalk.green.inverse(expected),
+          4
+        );
+      }
+  }
 
-      println(compared, 4);
-    } else if (expected === 'undefined' && actual === 'undefined') {
-      ;
-    } else if (expected_type === 'string') {
-      const compared = diffWords(actual, expected)
-        .map(writeDiff)
-        .join('');
-
-      println(compared, 4);
-    } else {
-      println(
-        chalk.red.inverse(actual) + chalk.green.inverse(expected),
-        4
-      );
+  const handleFailure = assert => {
+    try {
+      if (assert.diag.operator === 'error') {
+        handleException(assert);
+      } else {
+        handleAssertionFailure(assert);
+      }
+    } catch (e) {
+      console.log('error during TAP output formatting (tap-diff)', exception)
     }
   };
 
   const processSourceMap = (at) => {
-    let re = /\((.*)\:(\d*)\:(\d*)\)$/
-    let parsed = at.match(re);
-    let file = parsed[1];
-    let line = Number(parsed[2]);
-    let column = Number(parsed[3]);
+    try {
+      let re = /\((.*)\:(\d*)\:(\d*)\)$/
+      let parsed = at.match(re);
+      if (parsed === null) {
+        return at;
+      }
+      let file = parsed[1];
+      let line = Number(parsed[2]);
+      let column = Number(parsed[3]);
 
-    let sourceFile = getSource(file);
-    let resolved = sourceFile.resolve({line: line, column: column});
+      let sourceFile = getSource(file);
+      let resolved = sourceFile.resolve({line: line, column: column});
 
-    return at.replace(re, `(${resolved.sourceFile.path}:${resolved.line}:${resolved.column})`)
+      return at.replace(re, `(${resolved.sourceFile.path}:${resolved.line}:${resolved.column})`)
+    } catch (e) {
+      return '';
+    }
   };
 
   const handleComplete = result => {
@@ -161,7 +185,7 @@ const createReporter = () => {
 
       for (var i = result.failures.length - 1; i >= 0; i--) {
         println();
-        handleAssertFailure(result.failures[i]);
+        handleFailure(result.failures[i]);
       }
 
       println();
@@ -183,7 +207,7 @@ const createReporter = () => {
   p.on('assert', (assert) => {
     if (assert.ok) return handleAssertSuccess(assert);
 
-    handleAssertFailure(assert);
+    handleFailure(assert);
   });
 
   p.on('complete', handleComplete);

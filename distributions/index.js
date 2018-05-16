@@ -54,7 +54,7 @@ var createReporter = function createReporter() {
     var input = arguments.length <= 0 || arguments[0] === undefined ? '' : arguments[0];
     var indentLevel = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
 
-    var indent = '';
+    var indent = ' ';
 
     for (var i = 0; i < indentLevel; ++i) {
       indent += INDENT;
@@ -72,9 +72,7 @@ var createReporter = function createReporter() {
   };
 
   var handleAssertSuccess = function handleAssertSuccess(assert) {
-    var name = assert.name;
-
-    println(_chalk2['default'].green(FIG_TICK) + '  ' + _chalk2['default'].dim(name), 2);
+    println(_chalk2['default'].green(FIG_TICK) + '  ' + _chalk2['default'].dim(assert.name), 2);
   };
 
   var toString = function toString(arg) {
@@ -93,29 +91,42 @@ var createReporter = function createReporter() {
     });
   };
 
-  var handleAssertFailure = function handleAssertFailure(assert) {
-    var name = assert.name;
+  var writeDiff = function writeDiff(_ref) {
+    var value = _ref.value;
+    var added = _ref.added;
+    var removed = _ref.removed;
 
-    var writeDiff = function writeDiff(_ref) {
-      var value = _ref.value;
-      var added = _ref.added;
-      var removed = _ref.removed;
+    var style = _chalk2['default'].white;
 
-      var style = _chalk2['default'].white;
+    if (added) style = _chalk2['default'].green.inverse;
+    if (removed) style = _chalk2['default'].red.inverse;
 
-      if (added) style = _chalk2['default'].green.inverse;
-      if (removed) style = _chalk2['default'].red.inverse;
+    // only highlight values and not spaces before
+    return value.replace(/(^\s*)(.*)/g, function (m, one, two) {
+      return one + style(two);
+    });
+  };
 
-      // only highlight values and not spaces before
-      return value.replace(/(^\s*)(.*)/g, function (m, one, two) {
-        return one + style(two);
-      });
-    };
+  var handleException = function handleException(assert) {
+    // handle exception
+    var errorObject = assert.diag.actual;
+    var stackSplit = assert.diag.stack.split('\n').map(processSourceMap);
+    var stack = stackSplit.join('\n');
+    var at = processSourceMap(assert.diag.at);
 
+    println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red('Exception') + ' ' + _chalk2['default'].magenta(stackSplit[1].trim()), 2);
+    println('' + _chalk2['default'].cyan(stack));
+    println();
+    println('' + _chalk2['default'].cyan(errorObject));
+  };
+
+  var handleAssertionFailure = function handleAssertionFailure(assert) {
+    var assertionName = assert.name;
     var _assert$diag = assert.diag;
-    var at = _assert$diag.at;
     var actual = _assert$diag.actual;
     var expected = _assert$diag.expected;
+
+    var at = processSourceMap(assert.diag.at) || '';
 
     var expected_type = toString(expected);
 
@@ -139,9 +150,7 @@ var createReporter = function createReporter() {
       expected_type = toString(expected);
     }
 
-    at = processSourceMap(at);
-
-    println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
+    println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(assertionName) + ' at ' + _chalk2['default'].magenta(at), 2);
 
     if (expected_type === 'object') {
       var delta = _jsondiffpatch2['default'].diff(actual[failed_test_number], expected[failed_test_number]);
@@ -162,17 +171,36 @@ var createReporter = function createReporter() {
     }
   };
 
+  var handleFailure = function handleFailure(assert) {
+    try {
+      if (assert.diag.operator === 'error') {
+        handleException(assert);
+      } else {
+        handleAssertionFailure(assert);
+      }
+    } catch (e) {
+      console.log('error during TAP output formatting (tap-diff)', exception);
+    }
+  };
+
   var processSourceMap = function processSourceMap(at) {
-    var re = /\((.*)\:(\d*)\:(\d*)\)$/;
-    var parsed = at.match(re);
-    var file = parsed[1];
-    var line = Number(parsed[2]);
-    var column = Number(parsed[3]);
+    try {
+      var re = /\((.*)\:(\d*)\:(\d*)\)$/;
+      var parsed = at.match(re);
+      if (parsed === null) {
+        return at;
+      }
+      var file = parsed[1];
+      var line = Number(parsed[2]);
+      var column = Number(parsed[3]);
 
-    var sourceFile = (0, _getSource2['default'])(file);
-    var resolved = sourceFile.resolve({ line: line, column: column });
+      var sourceFile = (0, _getSource2['default'])(file);
+      var resolved = sourceFile.resolve({ line: line, column: column });
 
-    return at.replace(re, '(' + resolved.sourceFile.path + ':' + resolved.line + ':' + resolved.column + ')');
+      return at.replace(re, '(' + resolved.sourceFile.path + ':' + resolved.line + ':' + resolved.column + ')');
+    } catch (e) {
+      return '';
+    }
   };
 
   var handleComplete = function handleComplete(result) {
@@ -193,7 +221,7 @@ var createReporter = function createReporter() {
 
       for (var i = result.failures.length - 1; i >= 0; i--) {
         println();
-        handleAssertFailure(result.failures[i]);
+        handleFailure(result.failures[i]);
       }
 
       println();
@@ -214,7 +242,7 @@ var createReporter = function createReporter() {
   p.on('assert', function (assert) {
     if (assert.ok) return handleAssertSuccess(assert);
 
-    handleAssertFailure(assert);
+    handleFailure(assert);
   });
 
   p.on('complete', handleComplete);
