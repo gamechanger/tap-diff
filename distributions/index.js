@@ -54,7 +54,7 @@ var createReporter = function createReporter() {
     var input = arguments.length <= 0 || arguments[0] === undefined ? '' : arguments[0];
     var indentLevel = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
 
-    var indent = '';
+    var indent = ' ';
 
     for (var i = 0; i < indentLevel; ++i) {
       indent += INDENT;
@@ -72,9 +72,7 @@ var createReporter = function createReporter() {
   };
 
   var handleAssertSuccess = function handleAssertSuccess(assert) {
-    var name = assert.name;
-
-    println(_chalk2['default'].green(FIG_TICK) + '  ' + _chalk2['default'].dim(name), 2);
+    println(_chalk2['default'].green(FIG_TICK) + '  ' + _chalk2['default'].dim(assert.name), 2);
   };
 
   var toString = function toString(arg) {
@@ -93,85 +91,95 @@ var createReporter = function createReporter() {
     });
   };
 
-  var handleAssertFailure = function handleAssertFailure(assert) {
-    var name = assert.name;
+  var writeDiff = function writeDiff(_ref) {
+    var value = _ref.value;
+    var added = _ref.added;
+    var removed = _ref.removed;
 
-    var writeDiff = function writeDiff(_ref) {
-      var value = _ref.value;
-      var added = _ref.added;
-      var removed = _ref.removed;
+    var style = _chalk2['default'].white;
 
-      var style = _chalk2['default'].white;
+    if (added) style = _chalk2['default'].green.inverse;
+    if (removed) style = _chalk2['default'].red.inverse;
 
-      if (added) style = _chalk2['default'].green.inverse;
-      if (removed) style = _chalk2['default'].red.inverse;
+    // only highlight values and not spaces before
+    return value.replace(/(^\s*)(.*)/g, function (m, one, two) {
+      return one + style(two);
+    });
+  };
 
-      // only highlight values and not spaces before
-      return value.replace(/(^\s*)(.*)/g, function (m, one, two) {
-        return one + style(two);
-      });
-    };
+  var handleException = function handleException(assert) {
+    // handle exception
+    var errorObject = assert.diag.actual;
+    var stackSplit = assert.diag.stack.split('\n').map(processSourceMap);
+    var stack = stackSplit.join('\n');
+    var at = processSourceMap(assert.diag.at);
 
-    if (assert.diag.operator === 'error') {
-      // handle exception
-      var errorObject = assert.diag.actual;
-      var stackSplit = assert.diag.stack.split('\n').map(processSourceMap);
-      var stack = stackSplit.join('\n');
-      var at = processSourceMap(assert.diag.at);
+    println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red('Exception') + ' ' + _chalk2['default'].magenta(stackSplit[1].trim()), 2);
+    println('' + _chalk2['default'].cyan(stack));
+    println();
+    println('' + _chalk2['default'].cyan(errorObject));
+  };
 
-      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red('Exception at') + ' ' + _chalk2['default'].magenta(stackSplit[1]), 2);
-      println('' + _chalk2['default'].cyan(stack));
-      println();
-      println('' + _chalk2['default'].cyan(errorObject));
-    } else {
-      var _assert$diag = assert.diag;
-      var at = _assert$diag.at;
-      var actual = _assert$diag.actual;
-      var expected = _assert$diag.expected;
+  var handleAssertionFailure = function handleAssertionFailure(assert) {
+    var assertionName = assert.name;
+    var _assert$diag = assert.diag;
+    var actual = _assert$diag.actual;
+    var expected = _assert$diag.expected;
 
-      var expected_type = toString(expected);
+    var at = processSourceMap(assert.diag.at) || '';
 
-      if (expected_type !== 'array') {
-        try {
-          // the assert event only returns strings which is broken so this
-          // handles converting strings into objects
-          if (expected.indexOf('{') > -1) {
-            actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2);
-            expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2);
-          }
-        } catch (e) {
-          try {
-            actual = JSON.stringify(eval('(' + actual + ')'), null, 2);
-            expected = JSON.stringify(eval('(' + expected + ')'), null, 2);
-          } catch (e) {
-            // do nothing because it wasn't a valid json object
-          }
+    var expected_type = toString(expected);
+
+    if (expected_type !== 'array') {
+      try {
+        // the assert event only returns strings which is broken so this
+        // handles converting strings into objects
+        if (expected.indexOf('{') > -1) {
+          actual = JSON.stringify(JSON.parse(JSONize(actual)), null, 2);
+          expected = JSON.stringify(JSON.parse(JSONize(expected)), null, 2);
         }
-
-        expected_type = toString(expected);
+      } catch (e) {
+        try {
+          actual = JSON.stringify(eval('(' + actual + ')'), null, 2);
+          expected = JSON.stringify(eval('(' + expected + ')'), null, 2);
+        } catch (e) {
+          // do nothing because it wasn't a valid json object
+        }
       }
 
-      at = processSourceMap(at);
+      expected_type = toString(expected);
+    }
 
-      println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(name) + ' at ' + _chalk2['default'].magenta(at), 2);
+    println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red(assertionName) + ' at ' + _chalk2['default'].magenta(at), 2);
 
-      if (expected_type === 'object') {
-        var delta = _jsondiffpatch2['default'].diff(actual[failed_test_number], expected[failed_test_number]);
-        var _output = _jsondiffpatch2['default'].formatters.console.format(delta);
-        println(_output, 4);
-      } else if (expected_type === 'array') {
-        var compared = (0, _diff.diffJson)(actual, expected).map(writeDiff).join('');
+    if (expected_type === 'object') {
+      var delta = _jsondiffpatch2['default'].diff(actual[failed_test_number], expected[failed_test_number]);
+      var _output = _jsondiffpatch2['default'].formatters.console.format(delta);
+      println(_output, 4);
+    } else if (expected_type === 'array') {
+      var compared = (0, _diff.diffJson)(actual, expected).map(writeDiff).join('');
 
-        println(compared, 4);
-      } else if (expected === 'undefined' && actual === 'undefined') {
-        ;
-      } else if (expected_type === 'string') {
-        var compared = (0, _diff.diffWords)(actual, expected).map(writeDiff).join('');
+      println(compared, 4);
+    } else if (expected === 'undefined' && actual === 'undefined') {
+      ;
+    } else if (expected_type === 'string') {
+      var compared = (0, _diff.diffWords)(actual, expected).map(writeDiff).join('');
 
-        println(compared, 4);
+      println(compared, 4);
+    } else {
+      println(_chalk2['default'].red.inverse(actual) + _chalk2['default'].green.inverse(expected), 4);
+    }
+  };
+
+  var handleFailure = function handleFailure(assert) {
+    try {
+      if (assert.diag.operator === 'error') {
+        handleException(assert);
       } else {
-        println(_chalk2['default'].red.inverse(actual) + _chalk2['default'].green.inverse(expected), 4);
+        handleAssertionFailure(assert);
       }
+    } catch (e) {
+      console.log('error during TAP output formatting (tap-diff)', exception);
     }
   };
 
@@ -213,7 +221,7 @@ var createReporter = function createReporter() {
 
       for (var i = result.failures.length - 1; i >= 0; i--) {
         println();
-        handleAssertFailure(result.failures[i]);
+        handleFailure(result.failures[i]);
       }
 
       println();
@@ -234,13 +242,13 @@ var createReporter = function createReporter() {
   p.on('assert', function (assert) {
     if (assert.ok) return handleAssertSuccess(assert);
 
-    handleAssertFailure(assert);
+    handleFailure(assert);
   });
 
   p.on('complete', handleComplete);
 
   p.on('child', function (child) {
-    console.log(child);
+    ;
   });
 
   p.on('extra', function (extra) {

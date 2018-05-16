@@ -19,7 +19,7 @@ const createReporter = () => {
   const startedAt = Date.now();
 
   const println = (input = '', indentLevel = 0) => {
-    let indent = '';
+    let indent = ' ';
 
     for (let i = 0; i < indentLevel; ++i) {
       indent += INDENT;
@@ -37,9 +37,7 @@ const createReporter = () => {
   };
 
   const handleAssertSuccess = assert => {
-    const name = assert.name;
-
-    println(`${chalk.green(FIG_TICK)}  ${chalk.dim(name)}`, 2)
+    println(`${chalk.green(FIG_TICK)}  ${chalk.dim(assert.name)}`, 2)
   };
 
   const toString = (arg) => Object.prototype.toString.call(arg).slice(8, -1).toLowerCase()
@@ -52,38 +50,33 @@ const createReporter = () => {
       .replace(/'([^']+)'/g, (_, $1) => '"' + $1 + '"')
   }
 
-  const handleAssertFailure = assert => {
-    const name = assert.name;
+  const writeDiff = ({ value, added, removed }) => {
+    let style = chalk.white;
 
-    const writeDiff = ({ value, added, removed }) => {
-      let style = chalk.white;
+    if (added)   style = chalk.green.inverse;
+    if (removed) style = chalk.red.inverse;
 
-      if (added)   style = chalk.green.inverse;
-      if (removed) style = chalk.red.inverse;
+    // only highlight values and not spaces before
+    return value.replace(/(^\s*)(.*)/g, (m, one, two) => one + style(two))
+  };
 
-      // only highlight values and not spaces before
-      return value.replace(/(^\s*)(.*)/g, (m, one, two) => one + style(two))
-    };
-
-    if (assert.diag.operator === 'error') {
+  const handleException = (assert) => {
       // handle exception
       let errorObject = assert.diag.actual;
       let stackSplit = assert.diag.stack.split('\n').map(processSourceMap)
       let stack = stackSplit.join('\n');
       let at = processSourceMap(assert.diag.at);
 
-      println(`${chalk.red(FIG_CROSS)}  ${chalk.red('Exception at')} ${chalk.magenta(stackSplit[1])}`, 2);
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red('Exception')} ${chalk.magenta(stackSplit[1].trim())}`, 2);
       println(`${chalk.cyan(stack)}`)
       println()
       println(`${chalk.cyan(errorObject)}`)
+  }
 
-    } else {
-
-      let {
-        at,
-        actual,
-        expected
-      } = assert.diag
+  const handleAssertionFailure = (assert) => {
+      const assertionName = assert.name;
+      let { actual, expected } = assert.diag
+      let at = processSourceMap(assert.diag.at) || '';
 
       let expected_type = toString(expected)
 
@@ -107,9 +100,7 @@ const createReporter = () => {
         expected_type = toString(expected)
       }
 
-      at = processSourceMap(at);
-
-      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(name)} at ${chalk.magenta(at)}`, 2);
+      println(`${chalk.red(FIG_CROSS)}  ${chalk.red(assertionName)} at ${chalk.magenta(at)}`, 2);
 
       if (expected_type === 'object') {
         const delta = jsondiffpatch.diff(actual[failed_test_number], expected[failed_test_number])
@@ -136,8 +127,18 @@ const createReporter = () => {
           4
         );
       }
-    }
+  }
 
+  const handleFailure = assert => {
+    try {
+      if (assert.diag.operator === 'error') {
+        handleException(assert);
+      } else {
+        handleAssertionFailure(assert);
+      }
+    } catch (e) {
+      console.log('error during TAP output formatting (tap-diff)', exception)
+    }
   };
 
   const processSourceMap = (at) => {
@@ -184,7 +185,7 @@ const createReporter = () => {
 
       for (var i = result.failures.length - 1; i >= 0; i--) {
         println();
-        handleAssertFailure(result.failures[i]);
+        handleFailure(result.failures[i]);
       }
 
       println();
@@ -206,13 +207,13 @@ const createReporter = () => {
   p.on('assert', (assert) => {
     if (assert.ok) return handleAssertSuccess(assert);
 
-    handleAssertFailure(assert);
+    handleFailure(assert);
   });
 
   p.on('complete', handleComplete);
 
   p.on('child', (child) => {
-    console.log(child);
+    ;
   });
 
   p.on('extra', extra => {
