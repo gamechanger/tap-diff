@@ -116,7 +116,7 @@ var createReporter = function createReporter() {
       // handle exception
       console.log(assert);
       var errorObject = assert.diag.actual;
-      var stack = map(assert.diag.stack.split('\n'), processSourceMap).join('\n');
+      var stack = assert.diag.stack.split('\n').map(processSourceMap).join('\n');
       var at = processSourceMap(assert.diag.at);
 
       println(_chalk2['default'].red(FIG_CROSS) + '  ' + _chalk2['default'].red('Exception at') + ' ' + _chalk2['default'].magenta(at), 2);
