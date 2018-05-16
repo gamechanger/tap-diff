@@ -182,7 +182,7 @@ var createReporter = function createReporter() {
   var processSourceMap = function processSourceMap(at) {
     var re = /\((.*)\:(\d*)\:(\d*)\)$/;
     var parsed = at.match(re);
-    if (parsed === undefined) {
+    if (parsed === null) {
       return at;
     }
     var file = parsed[1];

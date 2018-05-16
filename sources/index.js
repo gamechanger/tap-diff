@@ -147,7 +147,7 @@ const createReporter = () => {
   const processSourceMap = (at) => {
     let re = /\((.*)\:(\d*)\:(\d*)\)$/
     let parsed = at.match(re);
-    if (parsed === undefined) {
+    if (parsed === null) {
       return at;
     }
     let file = parsed[1];
