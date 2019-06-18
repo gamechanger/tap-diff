@@ -179,7 +179,7 @@ var createReporter = function createReporter() {
         handleAssertionFailure(assert);
       }
     } catch (e) {
-      console.log('error during TAP output formatting (tap-diff)', exception);
+      console.log('error during TAP output formatting (tap-diff)', e);
     }
   };
 
