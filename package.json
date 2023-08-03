@@ -24,7 +24,7 @@
     "through2": "^2.0.0"
   },
   "devDependencies": {
-    "babel": "^5.8.34"
+    "babel": "^6.23.0"
   },
   "repository": {
     "type": "git",
